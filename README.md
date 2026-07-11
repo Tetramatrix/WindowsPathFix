@@ -2,7 +2,7 @@
 
 **Fixes common Windows issues for AI coding agents — automatically.**
 
-![Version](https://img.shields.io/badge/version-3.1.1-blue)
+![Version](https://img.shields.io/badge/version-3.2.0-blue)
 ![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
@@ -19,6 +19,38 @@
 | Store Python | Detected (Admin to fix) |
 | PATH | Duplicates removed |
 | Execution Policy | Set to RemoteSigned |
+
+---
+
+## Safe Execution Helpers
+
+These functions help AI agents avoid common PowerShell issues:
+
+### Invoke-Safe
+Execute PowerShell commands safely:
+```powershell
+Invoke-Safe -Command "Get-Item -LiteralPath 'D:\...\[ Projects ]'"
+```
+
+### Invoke-PythonSafe
+Run Python without PowerShell quoting issues:
+```powershell
+Invoke-PythonSafe -Script "print('hello')"
+Invoke-PythonSafe -File "script.py"
+```
+
+### New-TempFile
+Write to temp file, then move (avoids sandbox issues):
+```powershell
+New-TempFile -Content "data" -Target "D:\...\file.txt"
+```
+
+### Get-SafePath / Test-PathSafe
+Path helpers that handle special characters:
+```powershell
+$path = Get-SafePath "D:\...\[ Projects ]\file.txt"
+Test-PathSafe "D:\...\[ Projects ]\file.txt"
+```
 
 ---
 
@@ -39,12 +71,6 @@ Import-Module .\WindowsPathFix.psm1
 Install-WindowsPathFix
 ```
 
-### Option 3: Manual copy
-
-Copy these 2 files to `D:\Benutzer\Dokumente\PowerShell\Modules\WindowsPathFix\`:
-- `WindowsPathFix.psm1`
-- `WindowsPathFix.psd1`
-
 ---
 
 ## Use (every time)
@@ -56,7 +82,7 @@ Import-Module WindowsPathFix
 That's it. Everything auto-fixes and you see what was fixed:
 
 ```
-  WindowsPathFix v3.1.1
+  WindowsPathFix v3.2.0
   ─────────────────────────────────────
   [FIXED] LiteralPath default enabled
   [FIXED] Console encoding set to UTF-8
@@ -80,14 +106,31 @@ After installing WindowsPathFix, `Import-Module WindowsPathFix` loads it from an
 
 ---
 
-## Commands
+## All Commands
 
 | Command | What it does |
 |---------|--------------|
-| `Get-ShellInfo` | Show shell environment |
+| **Auto-fix (on import)** | |
+| `Initialize-WindowsFixes` | Apply all fixes |
+| **Path fix** | |
+| `Enable-LiteralPathDefault` | Disable `[ ]` wildcards |
+| `Disable-LiteralPathDefault` | Restore wildcard behavior |
+| `Get-LiteralPathStatus` | Check if fix is active |
+| **Python fix** | |
 | `Disable-StorePython` | Fix Python opening Store (Admin) |
+| `Enable-StorePython` | Restore Store aliases |
 | `Get-StorePythonStatus` | Check Store alias status |
-| `Get-LiteralPathStatus` | Check if path fix is active |
+| **Info** | |
+| `Get-ShellInfo` | Show shell environment |
+| `Get-ModuleInstallPath` | Show module paths |
+| **Safe execution** | |
+| `Invoke-Safe` | Execute PowerShell safely |
+| `Invoke-PythonSafe` | Run Python without quoting issues |
+| `New-TempFile` | Write via temp file (sandbox-safe) |
+| `Get-SafePath` | Get properly escaped path |
+| `Test-PathSafe` | Test path with special chars |
+| **Quick aliases** | |
+| `lcat`, `lni`, `lrm`, `lcp`, `lmv` | LiteralPath versions of common commands |
 
 ---
 

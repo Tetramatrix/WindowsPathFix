@@ -405,6 +405,179 @@ function lcp { param([Parameter(Mandatory)][string]$Source, [Parameter(Mandatory
 function lmv { param([Parameter(Mandatory)][string]$Source, [Parameter(Mandatory)][string]$Dest); Move-Item -LiteralPath $Source -Destination $Dest }
 
 # ============================================================================
+# SAFE EXECUTION HELPERS
+# ============================================================================
+
+function Invoke-Safe {
+    <#
+    .SYNOPSIS
+        Execute a PowerShell command safely, avoiding `$` expansion issues.
+    .DESCRIPTION
+        Wraps Invoke-Expression with proper escaping for AI agents that
+        struggle with PowerShell `$` variable syntax.
+    .EXAMPLE
+        Invoke-Safe -Command "Get-Item -LiteralPath 'D:\...\[ Projects ]'"
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Command
+    )
+
+    try {
+        # Use Invoke-Expression with proper error handling
+        $result = Invoke-Expression -Command $Command -ErrorAction Stop
+        return $result
+    } catch {
+        Write-Host "[ERROR] Command failed: $_" -ForegroundColor Red
+        return $null
+    }
+}
+
+function Invoke-PythonSafe {
+    <#
+    .SYNOPSIS
+        Run Python scripts safely, avoiding PowerShell quoting issues.
+    .DESCRIPTION
+        Executes Python code or files without PowerShell interpreting
+        special characters like `$`, `[`, `]`, etc.
+    .EXAMPLE
+        Invoke-PythonSafe -Script "print('hello')"
+        Invoke-PythonSafe -File "script.py"
+        Invoke-PythonSafe -Script "import sys; print(sys.version)"
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(ParameterSetName='Script')]
+        [string]$Script,
+
+        [Parameter(ParameterSetName='File')]
+        [string]$File
+    )
+
+    # Find Python
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if (-not $python) {
+        $python = Get-Command python3 -ErrorAction SilentlyContinue
+    }
+    if (-not $python) {
+        Write-Host "[ERROR] Python not found" -ForegroundColor Red
+        return $null
+    }
+
+    if ($File) {
+        # Run Python file
+        if (-not (Test-Path -LiteralPath $File)) {
+            Write-Host "[ERROR] File not found: $File" -ForegroundColor Red
+            return $null
+        }
+        $result = & $python.Source $File 2>&1
+    } elseif ($Script) {
+        # Run Python script via -c flag
+        # Use single quotes to avoid PowerShell $ expansion
+        $result = & $python.Source -c $Script 2>&1
+    }
+
+    return $result
+}
+
+function New-TempFile {
+    <#
+    .SYNOPSIS
+        Create a temp file safely, then move to target.
+    .DESCRIPTION
+        Writes content to a temp file first, then moves to the target location.
+        This avoids sandbox/file locking issues that occur when writing directly.
+    .EXAMPLE
+        New-TempFile -Content "data" -Target "D:\...\file.txt"
+        New-TempFile -Content "data" -Target "D:\...\file.txt" -Force
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Content,
+
+        [Parameter(Mandatory)]
+        [string]$Target,
+
+        [switch]$Force
+    )
+
+    $targetDir = Split-Path -Parent $Target
+    if (-not (Test-Path -LiteralPath $targetDir)) {
+        New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+    }
+
+    if ((Test-Path -LiteralPath $Target) -and -not $Force) {
+        Write-Host "[SKIP] File already exists: $Target" -ForegroundColor Yellow
+        return $false
+    }
+
+    # Write to temp file first
+    $tempFile = [System.IO.Path]::GetTempFileName()
+    try {
+        [System.IO.File]::WriteAllText($tempFile, $Content, [System.Text.Encoding]::UTF8)
+
+        # Move to target
+        Move-Item -LiteralPath $tempFile -Destination $Target -Force
+        Write-Host "[OK] Written to: $Target" -ForegroundColor Green
+        return $true
+    } catch {
+        Write-Host "[ERROR] Failed to write: $_" -ForegroundColor Red
+        # Cleanup temp file
+        if (Test-Path $tempFile) { Remove-Item $tempFile -Force }
+        return $false
+    }
+}
+
+function Get-SafePath {
+    <#
+    .SYNOPSIS
+        Get a properly escaped path for the current shell.
+    .DESCRIPTION
+        Returns a path that's safe to use in the current shell context.
+        Handles brackets, spaces, and special characters.
+    .EXAMPLE
+        $path = Get-SafePath "D:\...\[ Projects ]\file.txt"
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    # Normalize path
+    $normalized = [System.IO.Path]::GetFullPath($Path)
+
+    # Check if path exists
+    if (Test-Path -LiteralPath $normalized) {
+        return $normalized
+    }
+
+    # Try with wildcard expansion disabled
+    $literalPath = $normalized -replace '([[\]{}?*])', '`$1'
+    return $literalPath
+}
+
+function Test-PathSafe {
+    <#
+    .SYNOPSIS
+        Test if a path exists, handling special characters safely.
+    .DESCRIPTION
+        Wraps Test-Path with -LiteralPath to handle brackets and wildcards.
+    .EXAMPLE
+        Test-PathSafe "D:\...\[ Projects ]\file.txt"
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    return Test-Path -LiteralPath $Path
+}
+
+# ============================================================================
 # EXPORTS
 # ============================================================================
 
@@ -421,7 +594,13 @@ Export-ModuleMember -Function @(
     'Get-ShellInfo',
     'Install-AllFixes',
     'Get-ProfilePath',
-    'lcat', 'lni', 'lrm', 'lcp', 'lmv'
+    'lcat', 'lni', 'lrm', 'lcp', 'lmv',
+    # Safe execution helpers
+    'Invoke-Safe',
+    'Invoke-PythonSafe',
+    'New-TempFile',
+    'Get-SafePath',
+    'Test-PathSafe'
 )
 
 # ============================================================================
