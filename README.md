@@ -1,77 +1,98 @@
 # WindowsPathFix
 
-Disables wildcard interpretation of `[ ]`, `{ }`, `?`, `*` in PowerShell paths.
+Fixes common Windows issues for AI coding agents.
 
-## The Problem
+## Problems Solved
 
-PowerShell treats `[ ]` as wildcard characters:
+### 1. Path Brackets Break PowerShell
 
 ```powershell
-# This BREAKS with bracketed paths:
+# BREAKS:
 Get-ChildItem "D:\...\__ [ Projects ] __\..."
-# → Interprets [ P ] as wildcard matching P
+# PowerShell interprets [ P ] as wildcard
 
-# This WORKS:
-Get-ChildItem -LiteralPath "D:\...\__ [ Projects ] __\..."
-# → Treats [ ] as literal characters
+# WORKS after fix:
+Get-ChildItem "D:\...\__ [ Projects ] __\..."
+# Treated as literal characters
 ```
 
-This causes issues for AI coding agents, automation scripts, and anyone with brackets in their paths.
+### 2. Windows Store Opens Instead of Python
 
-## The Fix
+```cmd
+# BREAKS:
+C:\> python
+# Opens Microsoft Store instead of running Python
 
-```powershell
-$PSDefaultParameterValues['*:LiteralPath'] = $true
+# WORKS after fix:
+C:\> python
+# Runs actual Python installation
 ```
 
-This makes `-LiteralPath` the default for ALL cmdlets that support it.
-
-## Installation
-
-### Option 1: Import for current session
+## Quick Start
 
 ```powershell
+# Import the module
 Import-Module .\WindowsPathFix.psm1
-Enable-LiteralPathDefault
-```
 
-### Option 2: Install permanently to profile
-
-```powershell
-Import-Module .\WindowsPathFix.psm1
-Install-LiteralPathProfile
-# Restart PowerShell to apply
-```
-
-### Option 3: Install system-wide (requires admin)
-
-```powershell
-.\install.ps1
+# Install all fixes (adds to profile permanently)
+Install-AllFixes
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `Enable-LiteralPathDefault` | Enable LiteralPath for current session |
-| `Disable-LiteralPathDefault` | Disable (restore wildcard behavior) |
+| **Path Fix** | |
+| `Enable-LiteralPathDefault` | Enable for current session |
+| `Disable-LiteralPathDefault` | Disable (restore wildcards) |
 | `Get-LiteralPathStatus` | Check if enabled |
-| `Install-LiteralPathProfile` | Add to PowerShell profile permanently |
-| `Uninstall-LiteralPathProfile` | Remove from profile |
+| **Python Store Fix** | |
+| `Disable-StorePython` | Remove Store aliases (requires Admin) |
+| `Enable-StorePython` | Restore Store aliases |
+| `Get-StorePythonStatus` | Check alias status |
+| **Info** | |
+| `Get-ShellInfo` | Detect current shell |
+| `Install-AllFixes` | Install everything + add to profile |
+| **Quick Aliases** | |
+| `lcat` | `Get-Content -LiteralPath` |
+| `lni` | `New-Item -LiteralPath` |
+| `lrm` | `Remove-Item -LiteralPath` |
+| `lcp` | `Copy-Item -LiteralPath` |
+| `lmv` | `Move-Item -LiteralPath` |
 
-## What This Fixes
+## Integration with Existing Profiles
 
-- Paths with `[ ]` brackets (e.g., `__ [ Projects ] __`)
-- Paths with `{ }` braces
-- Paths with `?` question marks
-- Paths with `*` asterisks
-- Any path that PowerShell misinterprets as a wildcard pattern
+The module detects your existing profile and adds settings without overwriting:
+
+```powershell
+# Your existing profile (e.g., D:\...\PowerShell\profile.ps1)
+# WindowsPathFix adds at the end:
+# === WindowsPathFix (auto-added) ===
+# $PSDefaultParameterValues['*:LiteralPath'] = $true
+# === End WindowsPathFix ===
+```
+
+## For AI Agents (agents.md)
+
+Add to your agents.md:
+
+```markdown
+# Windows Environment
+
+When on Windows, import WindowsPathFix:
+\`\`\`powershell
+Import-Module WindowsPathFix
+Enable-LiteralPathDefault
+\`\`\`
+
+This disables [ ] wildcards in PowerShell paths.
+```
 
 ## Compatibility
 
 - PowerShell 5.1+
 - PowerShell 7+
-- Windows, macOS, Linux
+- Windows 10/11
 
 ## License
 
