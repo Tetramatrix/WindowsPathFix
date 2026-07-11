@@ -12,15 +12,109 @@
     4. GIT: autocrlf and longpaths configured
     5. EXECUTION POLICY: Set to RemoteSigned for current user
     6. PATH CLEANUP: Remove duplicate entries
-    7. SYMLINKS: Developer Mode check
 
     Just import and everything works.
 
 .NOTES
     Author: Tetramatrix
-    Version: 3.0.0
+    Version: 3.1.0
     Date: 2026-07-11
 #>
+
+# ============================================================================
+# AUTO-INSTALL: Detect correct modules path and install
+# ============================================================================
+
+function Install-WindowsPathFix {
+    <#
+    .SYNOPSIS
+        Installs WindowsPathFix to the correct PowerShell modules directory.
+    .DESCRIPTION
+        Auto-detects where PowerShell looks for modules and copies files there.
+        Works even if Documents folder is in a non-standard location.
+    .EXAMPLE
+        Install-WindowsPathFix
+    #>
+    [CmdletBinding()]
+    param()
+
+    # Find the correct modules path from PSModulePath
+    $moduleRoots = $env:PSModulePath -split ';' | Where-Object { $_ -ne '' }
+    $targetDir = $null
+
+    # Look for a user-writable modules directory
+    foreach ($root in $moduleRoots) {
+        # Skip system directories (need Admin)
+        if ($root -match 'Program Files|WINDOWS|system32') { continue }
+        # Check if we can write here
+        if (Test-Path $root) {
+            $targetDir = Join-Path $root "WindowsPathFix"
+            break
+        }
+    }
+
+    # Fallback: use first entry
+    if (-not $targetDir) {
+        $targetDir = Join-Path ($moduleRoots | Select-Object -First 1) "WindowsPathFix"
+    }
+
+    Write-Host "Installing to: $targetDir" -ForegroundColor Cyan
+
+    # Create directory
+    if (!(Test-Path $targetDir)) {
+        New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+    }
+
+    # Find source (where this .psm1 file is)
+    $sourceDir = Split-Path -Parent $PSCommandPath
+    if (-not $sourceDir) { $sourceDir = Split-Path -Parent (Get-Module WindowsPathFix).Path }
+
+    # Copy files
+    $files = @("WindowsPathFix.psm1", "WindowsPathFix.psd1")
+    foreach ($file in $files) {
+        $src = Join-Path $sourceDir $file
+        $dst = Join-Path $targetDir $file
+        if (Test-Path $src) {
+            Copy-Item -Path $src -Destination $dst -Force
+            Write-Host "[OK] $file" -ForegroundColor Green
+        } else {
+            Write-Host "[WARN] Source not found: $src" -ForegroundColor Yellow
+        }
+    }
+
+    # Verify
+    if (Test-Path (Join-Path $targetDir "WindowsPathFix.psm1")) {
+        Write-Host ""
+        Write-Host "[DONE] Installed to: $targetDir" -ForegroundColor Green
+        Write-Host "       Run: Import-Module WindowsPathFix" -ForegroundColor Cyan
+    } else {
+        Write-Host "[ERROR] Installation failed" -ForegroundColor Red
+    }
+}
+
+function Get-ModuleInstallPath {
+    <#
+    .SYNOPSIS
+        Shows where WindowsPathFix should be installed.
+    #>
+    [CmdletBinding()]
+    param()
+
+    $moduleRoots = $env:PSModulePath -split ';' | Where-Object { $_ -ne '' }
+
+    Write-Host "PowerShell Module Paths:" -ForegroundColor Cyan
+    foreach ($root in $moduleRoots) {
+        $isSystem = $root -match 'Program Files|WINDOWS|system32'
+        $exists = Test-Path $root
+        $marker = if ($isSystem) { "[system]" } else { "[user]" }
+        $color = if ($isSystem) { "Yellow" } elseif ($exists) { "Green" } else { "Red" }
+        Write-Host "  $marker $root" -ForegroundColor $color
+    }
+
+    $writable = $moduleRoots | Where-Object { $_ -notmatch 'Program Files|WINDOWS|system32' } | Select-Object -First 1
+    Write-Host ""
+    Write-Host "Recommended: $writable\WindowsPathFix" -ForegroundColor Green
+}
 
 # ============================================================================
 # AUTO-FIX: Runs on module import
@@ -315,6 +409,8 @@ function lmv { param([Parameter(Mandatory)][string]$Source, [Parameter(Mandatory
 # ============================================================================
 
 Export-ModuleMember -Function @(
+    'Install-WindowsPathFix',
+    'Get-ModuleInstallPath',
     'Initialize-WindowsFixes',
     'Enable-LiteralPathDefault',
     'Disable-LiteralPathDefault',
