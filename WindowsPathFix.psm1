@@ -428,4 +428,8 @@ Export-ModuleMember -Function @(
 # AUTO-RUN ON IMPORT
 # ============================================================================
 
-Initialize-WindowsFixes -Quiet
+Write-Host ""
+Write-Host "  WindowsPathFix v3.1.0" -ForegroundColor Cyan
+Write-Host "  ─────────────────────────────────────" -ForegroundColor DarkGray
+Initialize-WindowsFixes
+Write-Host ""
