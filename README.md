@@ -1,98 +1,146 @@
 # WindowsPathFix
 
-Fixes common Windows issues for AI coding agents.
+**Fixes the two most annoying Windows issues for AI coding agents.**
 
-## Problems Solved
+![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 
-### 1. Path Brackets Break PowerShell
+---
+
+## What It Fixes
+
+### Problem 1: `[ ]` in Paths Break PowerShell
+
+```
+D:\Benutzer\Dokumente\__ [ Projects ] __\myproject
+                ^^                        ^^
+            These are WILDCARDS in PowerShell
+```
 
 ```powershell
-# BREAKS:
+# BEFORE: Breaks
 Get-ChildItem "D:\...\__ [ Projects ] __\..."
-# PowerShell interprets [ P ] as wildcard
+# PowerShell interprets [ P ] as "match P"
 
-# WORKS after fix:
+# AFTER: Works
+# (just import the module)
 Get-ChildItem "D:\...\__ [ Projects ] __\..."
-# Treated as literal characters
+# Treated as literal text
 ```
 
-### 2. Windows Store Opens Instead of Python
+### Problem 2: `python` Opens Windows Store
 
-```cmd
-# BREAKS:
+```
 C:\> python
 # Opens Microsoft Store instead of running Python
-
-# WORKS after fix:
-C:\> python
-# Runs actual Python installation
 ```
+
+```powershell
+# Fix with one command:
+Disable-StorePython
+```
+
+---
+
+## Install
+
+### Option 1: One-liner (recommended)
+
+```powershell
+irm https://raw.githubusercontent.com/Tetramatrix/WindowsPathFix/main/Install.ps1 | iex
+```
+
+### Option 2: Manual
+
+```powershell
+# Clone or download, then:
+Import-Module .\WindowsPathFix.psm1
+Install-AllFixes
+```
+
+### Option 3: Copy to modules folder
+
+```powershell
+# Copy files to:
+# C:\Users\<you>\Documents\PowerShell\Modules\WindowsPathFix\
+
+Import-Module WindowsPathFix
+```
+
+---
 
 ## Quick Start
 
 ```powershell
-# Import the module
-Import-Module .\WindowsPathFix.psm1
+# See what's wrong
+Get-ShellInfo
 
-# Install all fixes (adds to profile permanently)
+# Fix paths
+Enable-LiteralPathDefault
+
+# Fix Python Store issue (needs Admin)
+Disable-StorePython
+
+# Or install everything at once
 Install-AllFixes
 ```
 
+---
+
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| **Path Fix** | |
-| `Enable-LiteralPathDefault` | Enable for current session |
-| `Disable-LiteralPathDefault` | Disable (restore wildcards) |
-| `Get-LiteralPathStatus` | Check if enabled |
-| **Python Store Fix** | |
-| `Disable-StorePython` | Remove Store aliases (requires Admin) |
+| Command | What it does |
+|---------|--------------|
+| `Enable-LiteralPathDefault` | Disable `[ ]` wildcards in paths |
+| `Disable-LiteralPathDefault` | Restore default behavior |
+| `Get-LiteralPathStatus` | Check if fix is active |
+| `Disable-StorePython` | Remove Store Python aliases (Admin) |
 | `Enable-StorePython` | Restore Store aliases |
 | `Get-StorePythonStatus` | Check alias status |
-| **Info** | |
-| `Get-ShellInfo` | Detect current shell |
+| `Get-ShellInfo` | Show shell environment |
 | `Install-AllFixes` | Install everything + add to profile |
-| **Quick Aliases** | |
-| `lcat` | `Get-Content -LiteralPath` |
-| `lni` | `New-Item -LiteralPath` |
-| `lrm` | `Remove-Item -LiteralPath` |
-| `lcp` | `Copy-Item -LiteralPath` |
-| `lmv` | `Move-Item -LiteralPath` |
 
-## Integration with Existing Profiles
+---
 
-The module detects your existing profile and adds settings without overwriting:
+## For AI Agents
 
-```powershell
-# Your existing profile (e.g., D:\...\PowerShell\profile.ps1)
-# WindowsPathFix adds at the end:
-# === WindowsPathFix (auto-added) ===
-# $PSDefaultParameterValues['*:LiteralPath'] = $true
-# === End WindowsPathFix ===
-```
-
-## For AI Agents (agents.md)
-
-Add to your agents.md:
+Add to your `agents.md`:
 
 ```markdown
-# Windows Environment
+## Windows Path Rules
 
-When on Windows, import WindowsPathFix:
+On Windows, import WindowsPathFix first:
 \`\`\`powershell
 Import-Module WindowsPathFix
 Enable-LiteralPathDefault
 \`\`\`
 
-This disables [ ] wildcards in PowerShell paths.
+This prevents [ ] from breaking paths.
 ```
+
+---
+
+## Profile Integration
+
+The module adds this to your PowerShell profile:
+
+```powershell
+# === WindowsPathFix (auto-added) ===
+$PSDefaultParameterValues['*:LiteralPath'] = $true
+# === End WindowsPathFix ===
+```
+
+This makes `-LiteralPath` the default for ALL cmdlets, permanently.
+
+---
 
 ## Compatibility
 
-- PowerShell 5.1+
-- PowerShell 7+
-- Windows 10/11
+- PowerShell 5.1 (Windows built-in)
+- PowerShell 7+ (recommended)
+- Windows 10 / 11
 
 ## License
 
